@@ -2,13 +2,10 @@ html {
     scroll-behavior: smooth;
 }
 
-/* Đảm bảo các section có đủ padding để không bị che bởi fixed header */
 .section {
-    scroll-margin-top: 100px;
-    /* Quan trọng: tạo khoảng cách khi scroll đến */
+    scroll-margin-top: 0px;
 }
 
-/* Hoặc nếu dùng class khác, thêm tương tự */
 #home,
 #about,
 #location,
@@ -18,22 +15,16 @@ html {
     scroll-margin-top: 100px;
 }
 
-/* Điều chỉnh cho mobile */
+/* Active state item */
+.primary-menu .menu-item a.active {
+    color: #e7c360 !important;
+    font-weight: bold !important;
+}
+
 @media (max-width: 768px) {
     .primary-menu {
         position: fixed;
         height: 60px;
-        /* hoặc chiều cao thực tế trên mobile */
-    }
-
-    #home,
-    #about,
-    #location,
-    #utilities,
-    #design,
-    #progress {
-        scroll-margin-top: 50px;
-        /* điều chỉnh theo mobile */
     }
 
     body {

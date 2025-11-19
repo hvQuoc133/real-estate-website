@@ -1,29 +1,34 @@
-class SmoothScroll {
+class SimpleSmoothScroll {
     constructor() {
-        this.menuLinks = document.querySelectorAll('.primary-menu a[href^="#"]');
-        this.header = document.querySelector('.primary-menu');
         this.init();
     }
 
     init() {
-        this.menuLinks.forEach(link => {
-            link.addEventListener('click', (e) => this.handleClick(e));
+        document.addEventListener('click', (e) => {
+            const link = e.target.closest('a[href^="#"]');
+            if (link && link.getAttribute('href') !== '#') {
+                e.preventDefault();
+                this.handleLinkClick(link);
+            }
         });
+
+        this.initScrollSpy();
     }
 
-    handleClick(e) {
-        e.preventDefault();
-        const targetId = e.target.getAttribute('href');
+    handleLinkClick(link) {
+        const targetId = link.getAttribute('href');
         this.scrollToTarget(targetId);
+        this.setActiveMenu(link);
+        this.closeMobileMenu();
     }
 
     scrollToTarget(targetId) {
         const targetElement = document.querySelector(targetId);
+        const header = document.querySelector('#header');
 
-        if (!targetElement) return;
+        if (!targetElement || !header) return;
 
-        // Tính toán chính xác hơn
-        const headerHeight = this.header.offsetHeight;
+        const headerHeight = header.offsetHeight;
         const elementPosition = targetElement.getBoundingClientRect().top;
         const offsetPosition = elementPosition + window.pageYOffset - headerHeight;
 
@@ -32,10 +37,60 @@ class SmoothScroll {
             behavior: 'smooth'
         });
 
-        // Update URL không làm reload page
         history.pushState(null, null, targetId);
+    }
+
+    setActiveMenu(activeLink) {
+        document.querySelectorAll('a[href^="#"].active').forEach(link => {
+            link.classList.remove('active');
+        });
+
+        activeLink.classList.add('active');
+    }
+
+    initScrollSpy() {
+        window.addEventListener('scroll', () => {
+            const scrollPosition = window.scrollY;
+            const sections = document.querySelectorAll('#home, #about, #location, #utilities, #design, #progress');
+
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                const sectionHeight = section.offsetHeight;
+
+                if (scrollPosition >= sectionTop && scrollPosition < sectionTop + sectionHeight) {
+                    const currentSection = '#' + section.id;
+
+                    document.querySelectorAll('a[href^="#"].active').forEach(link => {
+                        link.classList.remove('active');
+                    });
+
+                    const activeLink = document.querySelector(`a[href="${currentSection}"]`);
+                    if (activeLink) {
+                        activeLink.classList.add('active');
+                    }
+                }
+            });
+        });
+    }
+
+    closeMobileMenu() {
+        if (window.innerWidth <= 768) {
+            const toggleBtn = document.querySelector('.slicknav_btn.slicknav_open');
+            if (toggleBtn) {
+                toggleBtn.click();
+                return;
+            }
+            const mobileMenu = document.querySelector('.slicknav_nav');
+            if (mobileMenu && mobileMenu.style.display === 'block') {
+                mobileMenu.style.display = 'none';
+            }
+            if (typeof jQuery !== 'undefined' && jQuery('.slicknav_menu').length) {
+                jQuery('.slicknav_menu').slicknav('close');
+            }
+        }
     }
 }
 
-// Khởi tạo
-new SmoothScroll();
+document.addEventListener('DOMContentLoaded', () => {
+    new SimpleSmoothScroll();
+});
