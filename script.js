@@ -240,6 +240,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Notification
     function showNotification(type, title, message) {
+
+        document.body.style.overflow = 'auto';
+        document.documentElement.style.overflow = 'auto';
+
         const notification = document.createElement('div');
         notification.className = `newtown-notification ${type}`;
         notification.innerHTML = `
@@ -272,6 +276,9 @@ document.addEventListener('DOMContentLoaded', function () {
             if (notification.parentNode) {
                 notification.parentNode.removeChild(notification);
             }
+            // THÊM DÒNG NÀY ĐỂ CHẮC CHẮN SCROLL HOẠT ĐỘNG
+            document.body.style.overflow = 'auto';
+            document.documentElement.style.overflow = 'auto';
         }, 400);
     }
 
