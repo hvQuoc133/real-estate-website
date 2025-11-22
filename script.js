@@ -1,18 +1,88 @@
-class SimpleSmoothScroll {
+class OptimizedSmoothScroll {
     constructor() {
+        this.scrollTimeout = null;
+        this.lastScrollTop = 0;
+        this.currentActive = null;
+        this.scrollTopBtn = null;
+        this.scrollThreshold = 300;
+        this.sections = [];
         this.init();
     }
 
     init() {
+        this.initScrollTopButton();
+        this.getSections();
+        this.initScrollSpy();
+
+        // Event delegation for links
         document.addEventListener('click', (e) => {
             const link = e.target.closest('a[href^="#"]');
             if (link && link.getAttribute('href') !== '#') {
                 e.preventDefault();
                 this.handleLinkClick(link);
             }
+
+            // Handle scroll top button click
+            if (e.target.closest('.scrolltop-wrap a')) {
+                e.preventDefault();
+                this.scrollToTop();
+            }
         });
 
-        this.initScrollSpy();
+        // Active section 
+        setTimeout(() => {
+            this.updateActiveSection();
+        }, 100);
+    }
+
+    getSections() {
+        const sectionIds = ['home', 'about', 'location', 'utilities', 'design', 'progress', 'contact'];
+        this.sections = [];
+
+        sectionIds.forEach(id => {
+            const section = document.getElementById(id);
+            if (section) {
+                this.sections.push({
+                    id: id,
+                    element: section,
+                    top: section.offsetTop,
+                    bottom: section.offsetTop + section.offsetHeight
+                });
+            }
+        });
+
+        this.sections.sort((a, b) => a.top - b.top);
+    }
+
+    initScrollTopButton() {
+        this.scrollTopBtn = document.querySelector('.scrolltop-wrap');
+        if (!this.scrollTopBtn) {
+            console.warn('Scroll top button not found');
+            return;
+        }
+
+        window.addEventListener('scroll', () => {
+            this.toggleScrollTopButton();
+        }, { passive: true });
+    }
+
+    toggleScrollTopButton() {
+        if (!this.scrollTopBtn) return;
+
+        const scrollY = window.scrollY;
+
+        if (scrollY > this.scrollThreshold) {
+            this.scrollTopBtn.classList.add('show');
+        } else {
+            this.scrollTopBtn.classList.remove('show');
+        }
+    }
+
+    scrollToTop() {
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        });
     }
 
     handleLinkClick(link) {
@@ -26,82 +96,110 @@ class SimpleSmoothScroll {
         const targetElement = document.querySelector(targetId);
         const header = document.querySelector('#header');
 
-        if (!targetElement || !header) return;
+        if (!targetElement || !header) {
+            console.warn('Target element or header not found:', targetId);
+            return;
+        }
 
         const headerHeight = header.offsetHeight;
-        const elementPosition = targetElement.getBoundingClientRect().top;
-        const offsetPosition = elementPosition + window.pageYOffset - headerHeight;
+        const targetPosition = targetElement.offsetTop - headerHeight;
 
         window.scrollTo({
-            top: offsetPosition,
+            top: targetPosition,
             behavior: 'smooth'
         });
 
-        history.pushState(null, null, targetId);
+        if (history.replaceState) {
+            history.replaceState(null, null, targetId);
+        }
     }
 
     setActiveMenu(activeLink) {
-        document.querySelectorAll('a[href^="#"].active').forEach(link => {
+        if (!activeLink) return;
+
+        document.querySelectorAll('#menu a[href^="#"], .primary-menu a[href^="#"]').forEach(link => {
             link.classList.remove('active');
         });
 
         activeLink.classList.add('active');
+        this.currentActive = activeLink;
     }
 
     initScrollSpy() {
         window.addEventListener('scroll', () => {
-            const scrollPosition = window.scrollY;
-            const sections = document.querySelectorAll('#home, #about, #location, #utilities, #design, #progress');
+            if (this.scrollTimeout) {
+                window.cancelAnimationFrame(this.scrollTimeout);
+            }
 
-            sections.forEach(section => {
-                const sectionTop = section.offsetTop;
-                const sectionHeight = section.offsetHeight;
-
-                if (scrollPosition >= sectionTop && scrollPosition < sectionTop + sectionHeight) {
-                    const currentSection = '#' + section.id;
-
-                    document.querySelectorAll('a[href^="#"].active').forEach(link => {
-                        link.classList.remove('active');
-                    });
-
-                    const activeLink = document.querySelector(`a[href="${currentSection}"]`);
-                    if (activeLink) {
-                        activeLink.classList.add('active');
-                    }
-                }
+            this.scrollTimeout = window.requestAnimationFrame(() => {
+                this.updateActiveSection();
+                this.toggleScrollTopButton();
             });
-        });
+        }, { passive: true });
+    }
+
+    updateActiveSection() {
+        const scrollPosition = window.scrollY + 100; // Offset for header
+
+        let currentSection = null;
+
+        for (let i = this.sections.length - 1; i >= 0; i--) {
+            const section = this.sections[i];
+
+            if (scrollPosition >= section.top - 100) {
+                currentSection = section;
+                break;
+            }
+        }
+
+        if (!currentSection && this.sections.length > 0) {
+            currentSection = this.sections[0];
+        }
+
+        if (currentSection) {
+            const activeLink = document.querySelector(`#menu a[href="#${currentSection.id}"], .primary-menu a[href="#${currentSection.id}"]`);
+            if (activeLink && activeLink !== this.currentActive) {
+                this.setActiveMenu(activeLink);
+            }
+        }
     }
 
     closeMobileMenu() {
-        if (window.innerWidth <= 768) {
-            const toggleBtn = document.querySelector('.slicknav_btn.slicknav_open');
-            if (toggleBtn) {
-                toggleBtn.click();
-                return;
-            }
-            const mobileMenu = document.querySelector('.slicknav_nav');
-            if (mobileMenu && mobileMenu.style.display === 'block') {
-                mobileMenu.style.display = 'none';
-            }
-            if (typeof jQuery !== 'undefined' && jQuery('.slicknav_menu').length) {
-                jQuery('.slicknav_menu').slicknav('close');
-            }
+        if (window.innerWidth > 768) return;
+
+        const mobileMenu = document.querySelector('.slicknav_nav, [class*="mobile-menu"]');
+        if (mobileMenu && mobileMenu.style.display === 'block') {
+            mobileMenu.style.display = 'none';
+        }
+
+        if (typeof jQuery !== 'undefined' && jQuery('.slicknav_open').length) {
+            jQuery('.slicknav_btn').trigger('click');
         }
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    new SimpleSmoothScroll();
-});
+// FormHandler
+class OptimizedFormHandler {
+    constructor() {
+        this.init();
+    }
 
-// Processing email form
-document.addEventListener('DOMContentLoaded', function () {
-    const forms = document.querySelectorAll('form.wpcf7-form');
+    init() {
+        this.injectStyles();
+        this.setupForms();
+    }
 
-    // CSS notification and validation
-    const style = document.createElement('style');
-    style.textContent = `
+    injectStyles() {
+        if (document.querySelector('#newtown-styles')) return;
+
+        const style = document.createElement('style');
+        style.id = 'newtown-styles';
+        style.textContent = this.getStyles();
+        document.head.appendChild(style);
+    }
+
+    getStyles() {
+        return `
         .newtown-notification {
             position: fixed;
             top: 30px;
@@ -168,7 +266,6 @@ document.addEventListener('DOMContentLoaded', function () {
             padding: 5px;
         }
         
-        /* Validation Styles */
         .wpcf7-form-control-wrap.error input {
             border: 2px solid #dc3545 !important;
             background-color: #fff5f5;
@@ -179,10 +276,6 @@ document.addEventListener('DOMContentLoaded', function () {
             margin-top: 5px;
             display: block;
         }
-        .field-required::after {
-            content: " *";
-            color: #dc3545;
-        }
         
         @keyframes slideInRight {
             from { transform: translateX(100%); opacity: 0; }
@@ -192,42 +285,50 @@ document.addEventListener('DOMContentLoaded', function () {
             from { transform: translateX(0); opacity: 1; }
             to { transform: translateX(100%); opacity: 0; }
         }
-    `;
-    document.head.appendChild(style);
+        `;
+    }
 
-    // Func validate
-    function validateForm(form) {
+    setupForms() {
+        const forms = document.querySelectorAll('form.wpcf7-form');
+        forms.forEach(form => this.setupForm(form));
+    }
+
+    setupForm(form) {
+        this.addRealTimeValidation(form);
+        this.handleFormSubmit(form);
+    }
+
+    validateForm(form) {
         let isValid = true;
 
-        // Clear previous errors
         form.querySelectorAll('.error-message').forEach(el => el.remove());
         form.querySelectorAll('.wpcf7-form-control-wrap').forEach(wrap => {
             wrap.classList.remove('error');
         });
 
-        // Validate Name
         const nameInput = form.querySelector('input[name="your-name"]');
         if (!nameInput || nameInput.value.trim().length < 2) {
-            showFieldError(nameInput, 'Vui lòng nhập họ tên (ít nhất 2 ký tự)');
+            this.showFieldError(nameInput, 'Vui lòng nhập họ tên (ít nhất 2 ký tự)');
             isValid = false;
         }
 
-        // Validate Phone
         const phoneInput = form.querySelector('input[name="your-tel"]');
-        if (!phoneInput || !isValidPhone(phoneInput.value)) {
-            showFieldError(phoneInput, 'Vui lòng nhập số điện thoại hợp lệ (10-11 số)');
+        if (!phoneInput || !this.isValidPhone(phoneInput.value)) {
+            this.showFieldError(phoneInput, 'Vui lòng nhập số điện thoại hợp lệ (10-11 số)');
             isValid = false;
         }
 
         return isValid;
     }
 
-    function isValidPhone(phone) {
+    isValidPhone(phone) {
         const phoneRegex = /^(0|\+84)(3[2-9]|5[2689]|7[06-9]|8[1-9]|9[0-9])[0-9]{7}$/;
         return phoneRegex.test(phone.replace(/\s/g, ''));
     }
 
-    function showFieldError(input, message) {
+    showFieldError(input, message) {
+        if (!input) return;
+
         const wrap = input.closest('.wpcf7-form-control-wrap');
         if (wrap) {
             wrap.classList.add('error');
@@ -238,9 +339,36 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // Notification
-    function showNotification(type, title, message) {
+    addRealTimeValidation(form) {
+        let validationTimeout;
 
+        form.querySelectorAll('input').forEach(input => {
+            input.addEventListener('blur', () => {
+                clearTimeout(validationTimeout);
+                validationTimeout = setTimeout(() => {
+                    this.validateField(input);
+                }, 300);
+            });
+
+            input.addEventListener('input', () => {
+                const wrap = input.closest('.wpcf7-form-control-wrap');
+                if (wrap && wrap.classList.contains('error')) {
+                    wrap.classList.remove('error');
+                    wrap.querySelector('.error-message')?.remove();
+                }
+            });
+        });
+    }
+
+    validateField(field) {
+        if (field.name === 'your-name' && field.value.trim().length < 2) {
+            this.showFieldError(field, 'Vui lòng nhập họ tên (ít nhất 2 ký tự)');
+        } else if (field.name === 'your-tel' && field.value && !this.isValidPhone(field.value)) {
+            this.showFieldError(field, 'Số điện thoại không hợp lệ');
+        }
+    }
+
+    showNotification(type, title, message) {
         document.body.style.overflow = 'auto';
         document.documentElement.style.overflow = 'auto';
 
@@ -259,54 +387,33 @@ document.addEventListener('DOMContentLoaded', function () {
 
         document.body.appendChild(notification);
 
-        // Auto hidden 5s
         const autoRemove = setTimeout(() => {
-            removeNotification(notification);
+            this.removeNotification(notification);
         }, 5000);
 
         notification.querySelector('.notification-close').addEventListener('click', () => {
             clearTimeout(autoRemove);
-            removeNotification(notification);
+            this.removeNotification(notification);
         });
     }
 
-    function removeNotification(notification) {
+    removeNotification(notification) {
         notification.style.animation = 'slideOutRight 0.4s ease';
         setTimeout(() => {
             if (notification.parentNode) {
                 notification.parentNode.removeChild(notification);
             }
-            // THÊM DÒNG NÀY ĐỂ CHẮC CHẮN SCROLL HOẠT ĐỘNG
             document.body.style.overflow = 'auto';
             document.documentElement.style.overflow = 'auto';
         }, 400);
     }
 
-    // Send mail to form
-    forms.forEach(form => {
-        // Add  real-time validation
-        form.querySelectorAll('input').forEach(input => {
-            input.addEventListener('blur', function () {
-                if (this.name === 'your-name' && this.value.trim().length < 2) {
-                    showFieldError(this, 'Vui lòng nhập họ tên (ít nhất 2 ký tự)');
-                } else if (this.name === 'your-tel' && this.value && !isValidPhone(this.value)) {
-                    showFieldError(this, 'Số điện thoại không hợp lệ');
-                } else {
-                    const wrap = this.closest('.wpcf7-form-control-wrap');
-                    if (wrap) {
-                        wrap.classList.remove('error');
-                        wrap.querySelector('.error-message')?.remove();
-                    }
-                }
-            });
-        });
-
-        form.addEventListener('submit', function (e) {
+    handleFormSubmit(form) {
+        form.addEventListener('submit', (e) => {
             e.preventDefault();
 
-            // Validate
-            if (!validateForm(this)) {
-                showNotification(
+            if (!this.validateForm(form)) {
+                this.showNotification(
                     'error',
                     'THÔNG TIN CHƯA HỢP LỆ',
                     'Vui lòng kiểm tra lại các trường thông tin được đánh dấu.'
@@ -314,18 +421,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
 
-            const submitBtn = this.querySelector('input[type="submit"]');
+            const submitBtn = form.querySelector('input[type="submit"]');
             const originalText = submitBtn.value;
 
-            // Display loading
             submitBtn.value = '🔄 ĐANG XỬ LÝ...';
             submitBtn.disabled = true;
 
-            // New form data
-            const formData = new FormData(this);
+            const formData = new FormData(form);
 
-            // Send request
-            fetch(this.action, {
+            fetch(form.action, {
                 method: 'POST',
                 body: new URLSearchParams({
                     'your-name': formData.get('your-name') || '',
@@ -336,25 +440,21 @@ document.addEventListener('DOMContentLoaded', function () {
                 .then(response => response.text())
                 .then(result => {
                     if (result === 'success') {
-                        showNotification(
+                        this.showNotification(
                             'success',
                             'THÀNH CÔNG!',
                             'Yêu cầu của Quý khách đã được gửi thành công. Đội ngũ Newtown Diamond sẽ liên hệ trong thời gian sớm nhất.'
                         );
-                        this.reset();
+                        form.reset();
 
                         const popup = document.querySelector('.pum-overlay');
                         if (popup) popup.style.display = 'none';
                     } else {
-                        showNotification(
-                            'error',
-                            'THẤT BẠI',
-                            'Có lỗi xảy ra trong quá trình gửi yêu cầu. Vui lòng thử lại sau hoặc liên hệ hotline 0979 807 547.'
-                        );
+                        throw new Error('Server response not success');
                     }
                 })
                 .catch(error => {
-                    showNotification(
+                    this.showNotification(
                         'error',
                         'LỖI KẾT NỐI',
                         'Không thể kết nối đến hệ thống. Vui lòng kiểm tra kết nối internet và thử lại.'
@@ -365,5 +465,15 @@ document.addEventListener('DOMContentLoaded', function () {
                     submitBtn.disabled = false;
                 });
         });
-    });
+    }
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+    try {
+        new OptimizedSmoothScroll();
+        new OptimizedFormHandler();
+    } catch (error) {
+        console.error('Initialization error:', error);
+    }
 });
