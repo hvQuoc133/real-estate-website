@@ -341,13 +341,21 @@ class OptimizedFormHandler {
 
     addRealTimeValidation(form) {
         let validationTimeout;
+        let activeValidations = {};
 
         form.querySelectorAll('input').forEach(input => {
+            input.removeEventListener('blur', this.validateField);
+            input.removeEventListener('input', this.clearError);
+
             input.addEventListener('blur', () => {
+                if (activeValidations[input.name]) return;
+                activeValidations[input.name] = true;
+
                 clearTimeout(validationTimeout);
                 validationTimeout = setTimeout(() => {
                     this.validateField(input);
-                }, 300);
+                    activeValidations[input.name] = false;
+                }, 500);
             });
 
             input.addEventListener('input', () => {
@@ -431,10 +439,13 @@ class OptimizedFormHandler {
 
             fetch(form.action, {
                 method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
                 body: new URLSearchParams({
                     'your-name': formData.get('your-name') || '',
                     'your-tel': formData.get('your-tel') || '',
-                    'your-email': formData.get('your-email') || ''
+                    'page_url': document.getElementById('pageUrl') ? document.getElementById('pageUrl').value : window.location.href
                 })
             })
                 .then(response => response.text())
@@ -475,5 +486,14 @@ document.addEventListener('DOMContentLoaded', () => {
         new OptimizedFormHandler();
     } catch (error) {
         console.error('Initialization error:', error);
+    }
+});
+
+// Auto fill page URL
+document.addEventListener('DOMContentLoaded', function () {
+    var pageUrlField = document.getElementById('pageUrl');
+    if (pageUrlField) {
+        pageUrlField.value = window.location.href;
+        console.log('📄 Page URL set:', pageUrlField.value);
     }
 });
