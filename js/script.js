@@ -1,3 +1,23 @@
+// BLOCK CF7 GLOBAL
+// Delete CF7 global variables
+if (typeof wpcf7 !== 'undefined') {
+    console.log('⚠️ Xóa wpcf7 global variable');
+    delete window.wpcf7;
+}
+
+// Block fetch to old domain
+const originalFetch = window.fetch;
+window.fetch = function (...args) {
+    const url = typeof args[0] === 'string' ? args[0] : args[0]?.url || '';
+
+    if (url.includes('newtowndiamonddanang.vn')) {
+        console.log('🚫 CHẶN fetch đến domain cũ:', url);
+        return Promise.reject(new Error('Domain bị chặn'));
+    }
+
+    return originalFetch.apply(this, args);
+};
+
 class OptimizedSmoothScroll {
     constructor() {
         this.scrollTimeout = null;
@@ -494,6 +514,112 @@ document.addEventListener('DOMContentLoaded', function () {
     var pageUrlField = document.getElementById('pageUrl');
     if (pageUrlField) {
         pageUrlField.value = window.location.href;
-        console.log('📄 Page URL set:', pageUrlField.value);
     }
 });
+
+// Fix popup functionality - Simple version
+document.addEventListener('DOMContentLoaded', function () {
+
+    // Handle popup trigger clicks
+    document.addEventListener('click', function (e) {
+        const popupTrigger = e.target.closest('.popupms');
+        if (popupTrigger) {
+            e.preventDefault();
+            e.stopPropagation();
+            showPopup();
+        }
+    });
+
+    // Close popup when clicking X or overlay
+    document.addEventListener('click', function (e) {
+        if (e.target.closest('.pum-close') ||
+            e.target.classList.contains('pum-overlay')) {
+            hidePopup();
+        }
+    });
+
+    // Close on ESC key
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            hidePopup();
+        }
+    });
+
+    function showPopup() {
+        const popup = document.getElementById('pum-194');
+        if (popup) {
+            popup.style.display = 'block';
+            document.body.style.overflow = 'hidden';
+        } else {
+            // Fallback: redirect to contact section
+            window.location.href = '#contact';
+        }
+    }
+
+    function hidePopup() {
+        const popup = document.getElementById('pum-194');
+        if (popup) {
+            popup.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+    }
+});
+
+// Fix Gutena Tabs functionality
+class OptimizedTabs {
+    constructor() {
+        this.init();
+    }
+
+    init() {
+        document.addEventListener('DOMContentLoaded', () => {
+            this.setupTabs();
+        });
+    }
+
+    setupTabs() {
+        const tabBlocks = document.querySelectorAll('.gutena-tabs-block');
+
+        tabBlocks.forEach(block => {
+            const tabs = block.querySelectorAll('.gutena-tab-title');
+            const tabContents = block.querySelectorAll('.gutena-tab-block');
+
+            tabs.forEach(tab => {
+                tab.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const tabId = tab.getAttribute('data-tab');
+
+                    console.log('Tab clicked:', tabId);
+
+                    // Remove active class from all
+                    tabs.forEach(t => {
+                        t.classList.remove('active');
+                        t.classList.add('inactive');
+                    });
+
+                    tabContents.forEach(c => {
+                        c.classList.remove('active');
+                        c.classList.add('inactive');
+                    });
+
+                    // Add active to clicked tab
+                    tab.classList.remove('inactive');
+                    tab.classList.add('active');
+
+                    // Show corresponding content
+                    const targetContent = block.querySelector(`.gutena-tab-block[data-tab="${tabId}"]`);
+                    if (targetContent) {
+                        targetContent.classList.remove('inactive');
+                        targetContent.classList.add('active');
+                        console.log('Tab content shown:', tabId);
+                    }
+                });
+            });
+
+            console.log('Tabs initialized:', tabs.length);
+        });
+    }
+}
+
+// Initialize tabs
+new OptimizedTabs();
