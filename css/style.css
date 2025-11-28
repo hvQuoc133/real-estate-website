@@ -55,10 +55,6 @@ section[id] {
         box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     }
 
-    body {
-        padding-top: var(--mobile-header-height);
-    }
-
     section[id] {
         scroll-margin-top: var(--mobile-header-height);
     }
